@@ -4,17 +4,18 @@ This directory contains notebooks and scripts for the KubeCon NA 2025 demo showc
 
 ## Quick Start
 
-1. **Setup Environment** - Run `00 Setup.ipynb`
-2. **OAM Contribution Demo** - Run `01-OAM-contrib.ipynb`
-3. **Cleanup** - Run `01-cleanup.ipynb` or `99-cleanup.ipynb`
+1. **Setup Environment** - Run `00_Env-setup.ipynb`
+2. **OAM Contribution Demo** - Run `01_OAM-contrib.ipynb`
+3. **Cleanup OAM Demo** - Run `01-OAM-cleanup.ipynb`
+4. **Cleanup Environment** - Run `00-Env-cleanup.ipynb`
 
 ## Files Overview
 
 ### Notebooks
-- **`00 Setup.ipynb`** - Complete environment setup (k3d, Crossplane, KubeVela, AWS provider)
-- **`01-OAM-contrib.ipynb`** - Simplified DynamoDB OAM component contribution workflow
-- **`01-cleanup.ipynb`** - Cleanup for OAM demo resources
-- **`99-cleanup.ipynb`** - Complete environment teardown
+- **`00_Env-setup.ipynb`** - Complete environment setup (k3d, Crossplane, KubeVela, AWS provider)
+- **`01_OAM-contrib.ipynb`** - Simplified DynamoDB OAM component contribution workflow
+- **`01-OAM-cleanup.ipynb`** - Cleanup for OAM demo resources
+- **`00-Env-cleanup.ipynb`** - Complete environment teardown
 
 ### Configuration Files
 - **`config.yaml`** - Cluster and component configuration
@@ -47,7 +48,7 @@ chmod 600 .env.aws
 
 ### Step 3: Run Setup
 
-The `00 Setup.ipynb` notebook will automatically:
+The `00_Env-setup.ipynb` notebook will automatically:
 1. Read credentials from `.env.aws`
 2. Install the Crossplane AWS provider
 3. Create a Kubernetes secret with your credentials
@@ -110,7 +111,7 @@ curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
 # See: https://helm.sh/docs/intro/install/
 
 # Install vela CLI (optional)
-curl -fsSl https://kubevela.net/script/install.sh | bash
+curl -fsSl https://kubevela.io/script/install.sh | bash
 ```
 
 ### 2. Configure AWS Credentials
@@ -133,10 +134,10 @@ AWS_DEFAULT_REGION=us-west-2
 
 ### 3. Run Setup Notebook
 
-Open and run `00 Setup.ipynb` in Jupyter:
+Open and run `00_Env-setup.ipynb` in Jupyter:
 
 ```bash
-jupyter notebook "00 Setup.ipynb"
+jupyter notebook "00_Env-setup.ipynb"
 ```
 
 Or use the VS Code Jupyter extension.
@@ -181,14 +182,12 @@ kubectl logs -n crossplane-system -l pkg.crossplane.io/provider=provider-aws-dyn
 
 ### Quick Cleanup (OAM Demo Only)
 ```bash
-./01-cleanup.sh
-# OR
-jupyter notebook "01-cleanup.ipynb"
+jupyter notebook "01-OAM-cleanup.ipynb"
 ```
 
 ### Complete Cleanup (Everything)
 ```bash
-jupyter notebook "99-cleanup.ipynb"
+jupyter notebook "00-Env-cleanup.ipynb"
 # OR manually
 k3d cluster delete kubecon-demo
 ```
