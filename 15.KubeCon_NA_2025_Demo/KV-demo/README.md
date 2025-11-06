@@ -15,17 +15,21 @@ A Python Flask + boto3 Product Catalog API that stores product images in S3:
 
 #### 1. Traditional Approach (`/comparison/traditional/`)
 The conventional way using multiple tools:
-- **Terraform** (4 files, 209 lines) - Infrastructure as Code (one-time)
-- **Kubernetes Manifests** (5 files, 190 lines) - Application deployment (per-app)
-- **GitHub Actions** (1 file, 249 lines) - CI/CD pipeline (per-app)
-- **Total**: 10 files, ~648 lines (209 one-time + 439 per-app)
+- **Terraform** (4 files, 243 lines) - Infrastructure as Code (one-time)
+- **Kubernetes Manifests** (5 files, 188 lines) - Application deployment (per-app)
+- **CI/CD Pipeline** (1 file, 249 lines) - GitHub Actions or Dagger (per-app)
+- **Total**: 10 files, 680 lines (243 one-time + 437 per-app)
+
+**Local Execution Options:**
+- Use `act` to run GitHub Actions locally
+- Use Dagger for portable, container-based CI/CD (see `dagger/` directory)
 
 #### 2. KubeVela Approach (`/kubevela/`)
 The modern unified approach:
-- **Crossplane Components** (2 files, 193 lines) - Infrastructure definition (one-time platform setup)
-- **ComponentDefinition** (1 file, 76 lines) - Reusable S3 component (one-time platform setup)
+- **Crossplane Components** (2 files, 193 lines) - Infrastructure definition (one-time)
+- **ComponentDefinition** (1 file, 76 lines) - Reusable S3 component (one-time)
 - **Application** (1 file, 171 lines) - Complete application with workflow (per-app)
-- **Total**: 4 files, ~440 lines in 1 unified model
+- **Total**: 4 files, 440 lines (269 one-time + 171 per-app)
 
 ## Quick Start
 
@@ -47,109 +51,82 @@ See `00_Env-setup.ipynb` for detailed setup instructions.
 
 ### Demo Flow
 
-#### Step 1: Build the Application
+#### Step 1: Build Application Images
 
 ```bash
 cd app
 
-# Build and push Docker image to local registry
+# Build KubeVela version
 DOCKER_BUILDKIT=0 docker build -t product-catalog-api:v1.0.0 .
 docker tag product-catalog-api:v1.0.0 localhost:5000/product-catalog-api:v1.0.0
 docker push localhost:5000/product-catalog-api:v1.0.0
+
+# Build Traditional version (optional, only if testing traditional approach)
+docker tag product-catalog-api:v1.0.0 product-catalog-api:v1.0.0-traditional
+docker tag product-catalog-api:v1.0.0-traditional localhost:5000/product-catalog-api:v1.0.0-traditional
+docker push localhost:5000/product-catalog-api:v1.0.0-traditional
 ```
 
-#### Step 2: Show Traditional Approach (The Pain)
+#### Step 2: Traditional Approach (Optional)
 
 ```bash
 cd comparison/traditional
 
-# Show the complexity: 11 files across 3 tools
-ls terraform/ k8s/ .github/workflows/
+# Deploy with automatic cleanup and setup
+./deploy-local.sh --cleanup dev
 
-# Highlight key files
-cat terraform/main.tf              # 97 lines for S3 + IAM
-cat k8s/deployment.yaml            # 102 lines with security, resources
-cat .github/workflows/deploy.yml   # 210 lines for multi-stage pipeline
+# Verify deployment
+kubectl get pods,svc,hpa -n dev
 ```
 
-**Key Pain Points:**
-- Three different tools (Terraform, K8s, GitHub Actions)
-- Manual coordination between infrastructure and application
-- Scattered configuration across 11 files
+**Key Points:**
+- Separate tools: Terraform (infrastructure), K8s manifests (app), bash script (orchestration)
+- Uses different resources: `tenant-atlantis-product-images-traditional` bucket, `v1.0.0-traditional` image tag
+- IAM role ARN injected via placeholder in ServiceAccount annotation
 
-#### Step 3: Show KubeVela Approach (The Power)
+See [`comparison/traditional/DEMO_STEPS.md`](comparison/traditional/DEMO_STEPS.md) for details.
+
+#### Step 3: KubeVela Approach
 
 ```bash
 cd kubevela
 
-# Install Crossplane S3 component (one-time platform setup)
+# One-time: Install Crossplane S3 component
 kubectl apply -f crossplane/s3/xrd.yaml
 kubectl apply -f crossplane/s3/composition.yaml
 vela def apply components/s3/s3-bucket.cue
 
-# Setup AWS credentials in application namespaces
+# Setup AWS credentials
 cd .. && ./scripts/setup-aws-credentials.sh && cd kubevela
 
-# Show the single application file
-cat application.yaml  # Everything in one place!
-
-# Deploy the application
+# Deploy everything with one command
 vela up -f application.yaml
 
-# Check status - workflow deploys to dev and suspends
+# Check status
 vela status product-catalog
-
-# View dev deployment
-kubectl get pods -n dev
-kubectl get hpa -n dev
+kubectl get pods,hpa -n dev
 ```
 
-**Workflow Management:**
+**Progressive Delivery:**
 
 ```bash
-# Workflow is now suspended at approval-staging
-# Resume to deploy to staging
-vela workflow resume product-catalog
-sleep 30
+# Deploy to staging
+vela workflow resume product-catalog && sleep 30
+kubectl get pods,hpa -n staging
 
-# Check staging deployment
-kubectl get pods -n staging
-kubectl get hpa -n staging
-vela status product-catalog
+# Deploy to production
+vela workflow resume product-catalog && sleep 60
+kubectl get pods,hpa -n prod
 
-# Workflow is now suspended at approval-prod
-# Resume to deploy to production (wait 1 minute for full deployment)
-vela workflow resume product-catalog
-sleep 60
-
-# Check production deployment
-kubectl get pods -n prod
-kubectl get hpa -n prod
-
-# Final status - all three environments deployed
+# View complete status
 vela status product-catalog
 ```
 
-**Key Advantages to Highlight:**
-- Single unified application definition
-- Infrastructure as components (S3 bucket)
+**Key Advantages:**
+- Single file for app + infrastructure + workflow
 - Built-in traits (HPA, SecurityContext, Resources)
-- Built-in workflow (dev → staging → prod)
-- Policy-based environment overrides
-- Automatic state management
-
-#### Step 4: Show Environment-Specific Configuration
-
-```bash
-# Compare HPA configurations across environments
-echo "Dev HPA: min=1, max=3"
-echo "Staging HPA: min=2, max=5"
-echo "Production HPA: min=3, max=10"
-
-kubectl get hpa -n dev
-kubectl get hpa -n staging
-kubectl get hpa -n prod
-```
+- Policy-based environment overrides (dev: 1-3 pods, staging: 2-5, prod: 3-10)
+- Progressive delivery with approval gates
 
 ## Key Comparison Metrics
 
@@ -157,7 +134,7 @@ kubectl get hpa -n prod
 
 | Metric | Traditional | KubeVela | Notes |
 |--------|-------------|----------|-------|
-| Infrastructure Setup | 209 lines (4 Terraform files) | 269 lines (3 files) | Both are one-time setup |
+| Infrastructure Setup | 243 lines (4 Terraform files) | 269 lines (3 files) | Both are one-time setup |
 | State Management | Terraform state files | None | KubeVela uses K8s as state store |
 
 ### Per-Application Deployment
@@ -165,38 +142,19 @@ kubectl get hpa -n prod
 | Metric | Traditional | KubeVela | Improvement |
 |--------|-------------|----------|-------------|
 | Files | 6 | 1 | 83% fewer |
-| Lines of Code | ~439 | ~171 | 61% fewer |
+| Lines of Code | 437 | 171 | 61% fewer |
 | Tools | 2 (K8s, GHA) | 1 (KubeVela) | 50% fewer |
 | Configuration Overhead | K8s manifests + CI/CD | Single application.yaml | Unified |
 | Workflow | External (249 lines GHA) | Built-in | No external CI/CD |
 | Multi-Environment | Duplicate pipeline stages | Policy overrides | DRY principle |
 
-## Demo Talking Points
+## Key Takeaways
 
-### 1. Per-Application Simplification
-- **Traditional**: 6 files, 439 lines per app (K8s manifests + GitHub Actions)
-- **KubeVela**: 1 file, 171 lines per app (application.yaml only)
-- **Result**: 83% fewer files, 61% less code per application
-
-### 2. Infrastructure as Reusable Components
-- **Traditional**: 209 lines of Terraform (one-time, but requires state management)
-- **KubeVela**: 269 lines (one-time platform setup, no state files)
-- **Result**: Infrastructure becomes reusable components, referenced in 6 lines per app
-
-### 3. Unified Application Model
-- **Traditional**: Separate K8s manifests (190 lines) + CI/CD pipeline (249 lines)
-- **KubeVela**: Single application.yaml with built-in workflow
-- **Result**: Everything in one place - app, infrastructure, and deployment workflow
-
-### 4. No External CI/CD Needed
-- **Traditional**: 249-line GitHub Actions workflow per app
-- **KubeVela**: Built-in multi-environment workflow with approval gates
-- **Result**: Progressive delivery without external orchestration
-
-### 5. Multi-Environment Made Easy
-- **Traditional**: Duplicate pipeline stages or complex conditionals
-- **KubeVela**: Policy-based overrides (dev: 1-3 pods, staging: 2-5, prod: 3-10)
-- **Result**: Single source of truth, environment-specific configs via policies
+1. **83% fewer files per app**: Traditional (6 files) vs KubeVela (1 file)
+2. **61% less code per app**: Traditional (437 lines) vs KubeVela (171 lines)
+3. **Unified model**: Single file for app + infrastructure + workflow
+4. **No external CI/CD**: Built-in progressive delivery with approval gates
+5. **Policy-driven config**: Environment-specific overrides without duplication
 
 ## Documentation
 
@@ -242,16 +200,13 @@ docker push localhost:5000/product-catalog-api:v1.0.0
 ## Cleanup
 
 ```bash
-# Delete KubeVela application
+# KubeVela
 vela delete product-catalog
-
-# Delete application namespaces
 kubectl delete namespace dev staging prod
 
-# Or for traditional approach
+# Traditional (if deployed)
 cd comparison/traditional
-kubectl delete -f k8s/
-terraform destroy
+./deploy-local.sh --cleanup dev
 ```
 
 ## Architecture Diagram
@@ -291,7 +246,7 @@ terraform destroy
 
 After this demo, the audience will understand:
 
-1. ✅ KubeVela reduces complexity (64% fewer files)
+1. ✅ KubeVela reduces complexity (83% fewer files per app)
 2. ✅ Infrastructure can be treated as application components
 3. ✅ Workflows eliminate external CI/CD complexity
 4. ✅ Traits provide reusable cross-cutting concerns

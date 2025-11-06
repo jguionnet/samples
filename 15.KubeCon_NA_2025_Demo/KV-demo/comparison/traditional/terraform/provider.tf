@@ -1,5 +1,5 @@
 terraform {
-  required_version = "1.5.7"
+  required_version = ">= 1.5.0"
 
   required_providers {
     aws = {
@@ -8,20 +8,16 @@ terraform {
     }
   }
 
-  # S3 backend for state management
-  backend "s3" {
-    bucket = "terraform-state-kubecon-demo"
-    key    = "product-catalog/terraform.tfstate"
-    region = "us-west-2"
-    # Enable encryption
-    encrypt = true
-    # DynamoDB table for state locking
-    dynamodb_table = "terraform-state-lock"
-  }
+  # Using local backend for demo purposes
+  # In production, use S3 backend with state locking
 }
 
 provider "aws" {
   region = var.aws_region
+
+  # Use environment variables for credentials
+  # AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN
+  # These should be sourced from .env.aws
 
   default_tags {
     tags = var.common_tags

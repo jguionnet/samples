@@ -19,7 +19,7 @@ A microservice that:
 
 | Aspect | Traditional Approach | KubeVela Approach |
 |--------|---------------------|-------------------|
-| **K8s Resources** | Raw YAML manifests (100+ lines) | Component definitions with sensible defaults |
+| **K8s Resources** | Raw YAML manifests (188 lines) | Component definitions with sensible defaults |
 | **Infrastructure** | Separate Terraform files + state management | S3 component in same application.yaml |
 | **Orchestration** | External CI/CD pipeline (Jenkins/GitHub Actions) | Built-in workflow in application.yaml |
 | **Configuration** | Multiple config files, hard-coded values | Traits for cross-cutting concerns |
@@ -61,22 +61,19 @@ A microservice that:
 **What you need:**
 
 **A. Kubernetes Manifests:**
-- deployment.yaml (60+ lines)
+- deployment.yaml (104 lines)
   - Container specs, replicas, labels
   - Environment variables, volume mounts
-- service.yaml (20+ lines)
-- hpa.yaml (20+ lines)
+- service.yaml (17 lines)
+- hpa.yaml (44 lines)
   - Min/max replicas, target CPU
-- resource-limits.yaml (15+ lines)
-  - CPU/memory requests and limits
-- security-context.yaml (25+ lines)
-  - runAsNonRoot, readOnlyRootFilesystem
-  - securityContext configurations
-- configmap.yaml (varies)
-- secrets management
+- serviceaccount.yaml (11 lines)
+  - IAM role annotation
+- configmap.yaml (12 lines)
+- Total: 188 lines across 5 YAML files
 
 **B. Terraform Files (HCL):**
-- **provider.tf** (15+ lines)
+- **provider.tf** (25 lines)
   ```hcl
   terraform {
     required_version = "1.5.7"
@@ -99,7 +96,7 @@ A microservice that:
   }
   ```
 
-- **main.tf** (50+ lines)
+- **main.tf** (101 lines)
   ```hcl
   # S3 Bucket for product images
   resource "aws_s3_bucket" "product_images" {
@@ -129,12 +126,13 @@ A microservice that:
   }
   ```
 
-- **variables.tf** (20+ lines)
-- **outputs.tf** (15+ lines)
-- **terraform.tfvars** (10+ lines)
+- **variables.tf** (68 lines)
+- **outputs.tf** (29 lines)
+- **terraform.tfvars** (20 lines)
+- Total: 243 lines across 4 Terraform files
 
 **C. CI/CD Pipeline (GitHub Actions):**
-- **.github/workflows/deploy.yml** (100+ lines)
+- **.github/workflows/deploy.yml** (249 lines)
   ```yaml
   name: Deploy Product Catalog
   on:
@@ -160,7 +158,7 @@ A microservice that:
       - repeat for production
   ```
 
-**Total: 300+ lines across 10+ files in 3 different tools**
+**Total: 680 lines across 10 files in 3 different tools** (243 Terraform + 188 K8s + 249 CI/CD)
 
 **Pain points:**
 - Context switching between K8s YAML, HCL, and CI/CD pipeline YAML
@@ -175,9 +173,9 @@ A microservice that:
 ### Scenario 2: KubeVela (The Better Way)
 
 **What you need:**
-- application.yaml (80-100 lines total)
+- application.yaml (171 lines total)
 - Component definitions (reusable, platform-provided)
-- **Total: 100 lines in 1 file**
+- **Total: 171 lines in 1 file**
 
 **Benefits:**
 - Single source of truth
@@ -234,7 +232,7 @@ docker push localhost:5000/product-api:v1.0.0
 
 ### Part 1: The Traditional Way (Show the Pain)
 
-**Show the complete traditional stack** (10+ files, 300+ lines):
+**Show the complete traditional stack** (10 files, 680 lines):
 
 1. **Terraform Infrastructure** (HCL files)
    - provider.tf with version constraints
@@ -264,7 +262,7 @@ docker push localhost:5000/product-api:v1.0.0
 
 ### Part 2: The KubeVela Way (Show the Power)
 
-1. **Show single application.yaml** (1 file, ~100 lines)
+1. **Show single application.yaml** (1 file, 171 lines vs 6 files, 437 lines)
    - Clean, business-focused
    - Components with defaults
    - Built-in workflow
@@ -406,7 +404,7 @@ docker push localhost:5000/product-api:v1.0.0
 
 By the end of the demo, the audience should understand:
 
-1. ✅ KubeVela reduces complexity (1 file vs 10+ files)
+1. ✅ KubeVela reduces complexity (1 file vs 6 files per app, 83% fewer)
 2. ✅ Infrastructure can be treated as components
 3. ✅ Workflows eliminate external CI/CD for deployments
 4. ✅ Traits provide reusable cross-cutting concerns

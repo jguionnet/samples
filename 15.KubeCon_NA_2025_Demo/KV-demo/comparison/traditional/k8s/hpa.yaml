@@ -2,7 +2,6 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: product-catalog-api-hpa
-  namespace: default
   labels:
     app: product-catalog-api
     component: backend

@@ -7,7 +7,7 @@ variable "aws_region" {
 variable "bucket_name" {
   description = "Name of the S3 bucket for product images"
   type        = string
-  default     = "tenant-atlantis-product-images"
+  default     = "tenant-atlantis-product-images-traditional"
 }
 
 variable "enable_versioning" {
@@ -38,6 +38,18 @@ variable "oidc_provider_url" {
   description = "URL of the OIDC provider"
   type        = string
   default     = ""
+}
+
+variable "create_iam_resources" {
+  description = "Whether to create IAM role and policy. Set to false if you lack IAM permissions."
+  type        = bool
+  default     = false
+}
+
+variable "existing_iam_role_arn" {
+  description = "ARN of existing IAM role to use when create_iam_resources is false"
+  type        = string
+  default     = "arn:aws:iam::627188849628:role/aws_gwre-ccs-dev_tenant_atlantis_developer"
 }
 
 variable "common_tags" {

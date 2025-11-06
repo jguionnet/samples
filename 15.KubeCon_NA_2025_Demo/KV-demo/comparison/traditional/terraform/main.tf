@@ -31,8 +31,10 @@ resource "aws_s3_bucket_public_access_block" "product_images" {
 }
 
 # IAM Role for Kubernetes Service Account (IRSA)
+# Only created if create_iam_resources is true
 resource "aws_iam_role" "product_api" {
-  name = "${var.namespace}-product-api-role"
+  count = var.create_iam_resources ? 1 : 0
+  name  = "${var.namespace}-product-api-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -62,7 +64,9 @@ resource "aws_iam_role" "product_api" {
 }
 
 # IAM Policy for S3 Access
+# Only created if create_iam_resources is true
 resource "aws_iam_policy" "s3_access" {
+  count       = var.create_iam_resources ? 1 : 0
   name        = "${var.namespace}-product-api-s3-policy"
   description = "Policy for product API to access S3 bucket"
 
@@ -89,7 +93,9 @@ resource "aws_iam_policy" "s3_access" {
 }
 
 # Attach Policy to Role
+# Only created if create_iam_resources is true
 resource "aws_iam_role_policy_attachment" "product_api_s3" {
-  role       = aws_iam_role.product_api.name
-  policy_arn = aws_iam_policy.s3_access.arn
+  count      = var.create_iam_resources ? 1 : 0
+  role       = aws_iam_role.product_api[0].name
+  policy_arn = aws_iam_policy.s3_access[0].arn
 }
